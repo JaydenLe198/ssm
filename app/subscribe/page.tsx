@@ -1,27 +1,32 @@
-import StripePricingTable from "@/components/StripePricingTable";
+import { Button } from "@/components/ui/button"
 import Image from "next/image"
-import { createClient } from '@/utils/supabase/server'
-import { createStripeCheckoutSession } from "@/utils/stripe/api";
-export default async function Subscribe() {
-    const supabase = createClient()
-    const {
-        data: { user },
-    } = await supabase.auth.getUser()
-    const checkoutSessionSecret = await createStripeCheckoutSession(user!.email!)
+import Link from "next/link"
 
-    return (
-        <div className="flex flex-col min-h-screen bg-secondary">
-            <header className="px-4 lg:px-6 h-16 flex items-center  bg-white border-b fixed border-b-slate-200 w-full">
-                <Image src="/logo.png" alt="logo" width={50} height={50} />
-                <span className="sr-only">Acme Inc</span>
-            </header>
-            <div className="w-full py-20 lg:py-32 xl:py-40">
-                <div className="text-center py-6 md:py-10 lg:py-12 ">
-                    <h1 className="font-bold text-xl md:text-3xl lg:text-4xl ">Pricing</h1>
-                    <h1 className="pt-4 text-muted-foreground text-sm md:text-md lg:text-lg">Choose the right plan for your team! Cancel anytime!</h1>
-                </div>
-                <StripePricingTable checkoutSessionSecret={checkoutSessionSecret} />
-            </div>
+export default function Subscribe() {
+  return (
+    <div className="flex flex-col min-h-screen bg-muted">
+      <header className="px-4 lg:px-6 h-16 flex items-center bg-white border-b border-b-slate-200 w-full">
+        <Link className="flex items-center justify-center" href="/">
+          <Image src="/logo.png" alt="logo" width={50} height={50} />
+          <span className="sr-only">Acme Inc</span>
+        </Link>
+      </header>
+      <main className="flex flex-1 items-center justify-center px-4">
+        <div className="max-w-md space-y-6 text-center">
+          <h1 className="text-3xl font-bold">No subscription required</h1>
+          <p className="text-muted-foreground">
+            We now charge per registration and booking, so you can head straight to your dashboard and start building.
+          </p>
+          <div className="flex flex-col gap-2 sm:flex-row sm:justify-center">
+            <Button asChild>
+              <Link href="/dashboard">Go to dashboard</Link>
+            </Button>
+            <Button variant="outline" asChild>
+              <Link href="/">Back to home</Link>
+            </Button>
+          </div>
         </div>
-    )
+      </main>
+    </div>
+  )
 }

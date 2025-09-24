@@ -14,18 +14,28 @@ export default function SignupForm() {
     const { pending } = useFormStatus()
 
     return (
-        <form action={formAction}>
+        <form action={formAction} className="space-y-3">
             <div className="grid gap-2">
-                <Label htmlFor="name">Name</Label>
+                <Label htmlFor="firstName">First name</Label>
                 <Input
-                    id="name"
+                    id="firstName"
                     type="text"
-                    placeholder="John Doe"
-                    name="name"
+                    placeholder="John"
+                    name="firstName"
                     required
                 />
             </div>
-            <div className="grid gap-2 mt-2">
+            <div className="grid gap-2">
+                <Label htmlFor="lastName">Last name</Label>
+                <Input
+                    id="lastName"
+                    type="text"
+                    placeholder="Doe"
+                    name="lastName"
+                    required
+                />
+            </div>
+            <div className="grid gap-2">
                 <Label htmlFor="email">Email</Label>
                 <Input
                     id="email"
@@ -35,7 +45,7 @@ export default function SignupForm() {
                     required
                 />
             </div>
-            <div className="grid gap-2 mt-2">
+            <div className="grid gap-2">
                 <Label htmlFor="password">Password</Label>
                 <Input
                     id="password"
@@ -44,7 +54,9 @@ export default function SignupForm() {
                     required
                 />
             </div>
-            <Button className="w-full mt-4" type="submit" aria-disabled={pending}>  {pending ? 'Submitting...' : 'Sign up'}</Button>
+            <Button className="w-full" type="submit" aria-disabled={pending}>
+                {pending ? 'Submitting...' : 'Sign up'}
+            </Button>
             {formState?.message && (
                 <p className="text-sm text-red-500 text-center py-2">{formState.message}</p>
             )}

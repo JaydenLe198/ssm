@@ -1,15 +1,10 @@
 import { NextResponse } from 'next/server'
-// The client you created from the Server-Side Auth instructions
 import { createClient } from '@/utils/supabase/server'
-import { createStripeCustomer } from '@/utils/stripe/api'
-import { db } from '@/utils/db/db'
-import { usersTable } from '@/utils/db/schema'
-import { eq } from "drizzle-orm";
+import { upsertUserProfile } from '@/utils/profile/upsertUserProfile'
 
 export async function GET(request: Request) {
     const { searchParams, origin } = new URL(request.url)
     const code = searchParams.get('code')
-    // if "next" is in param, use it as the redirect URL
     const next = searchParams.get('next') ?? '/'
 
     if (code) {
@@ -20,20 +15,37 @@ export async function GET(request: Request) {
                 data: { user },
             } = await supabase.auth.getUser()
 
-            // check to see if user already exists in db
-            const checkUserInDB = await db.select().from(usersTable).where(eq(usersTable.email, user!.email!))
-            const isUserInDB = checkUserInDB.length > 0 ? true : false
-            if (!isUserInDB) {
-                // create Stripe customers
-                const stripeID = await createStripeCustomer(user!.id, user!.email!, user!.user_metadata.full_name)
-                // Create record in DB
-                await db.insert(usersTable).values({ id: user!.id, name: user!.user_metadata.full_name, email: user!.email!, stripe_id: stripeID, plan: 'none' })
+            if (user) {
+                const { data: existingProfile } = await supabase
+                    .from('user_profiles')
+                    .select('id')
+                    .eq('id', user.id)
+                    .maybeSingle()
+
+                const metadata = (user.user_metadata ?? {}) as Record<string, unknown>
+                const firstName = (metadata.first_name ?? metadata.firstName ?? null) as string | null
+                const lastName = (metadata.last_name ?? metadata.lastName ?? null) as string | null
+                const fullNameMetadata = metadata["full_name"] as string | null | undefined
+                const fullName = fullNameMetadata ?? [firstName, lastName].filter(Boolean).join(' ')
+
+                const profileResult = await upsertUserProfile({
+                    supabase,
+                    userId: user.id,
+                    fullName,
+                    firstName,
+                    lastName,
+                    email: user.email,
+                    roles: existingProfile ? undefined : ['customer'],
+                })
+
+                if (!profileResult.success) {
+                    console.error('Failed to upsert user profile during OAuth callback:', profileResult.error)
+                }
             }
 
-            const forwardedHost = request.headers.get('x-forwarded-host') // original origin before load balancer
+            const forwardedHost = request.headers.get('x-forwarded-host')
             const isLocalEnv = process.env.NODE_ENV === 'development'
             if (isLocalEnv) {
-                // we can be sure that there is no load balancer in between, so no need to watch for X-Forwarded-Host
                 return NextResponse.redirect(`${origin}${next}`)
             } else if (forwardedHost) {
                 return NextResponse.redirect(`https://${forwardedHost}${next}`)
@@ -43,6 +55,5 @@ export async function GET(request: Request) {
         }
     }
 
-    // return the user to an error page with instructions
     return NextResponse.redirect(`${origin}/auth/auth-code-error`)
 }
