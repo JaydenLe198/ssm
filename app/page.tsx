@@ -98,7 +98,7 @@ export default function LandingPage() {
                         <Star key={i} className="w-5 h-5 fill-primary text-primary" />
                       ))}
                     </div>
-                    <p className="text-muted-foreground mb-2">"{quote}"</p>
+                    <p className="text-muted-foreground mb-2">&ldquo;{quote}&rdquo;</p>
                     <p className="font-semibold">Product Team</p>
                   </CardContent>
                 </Card>
