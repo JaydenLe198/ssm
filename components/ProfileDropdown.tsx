@@ -14,7 +14,7 @@ import { Button } from "@/components/ui/button";
 import { createClient } from "@/utils/supabase/server";
 import { logout } from "@/app/auth/actions";
 
-export default async function DashboardHeaderProfileDropdown() {
+export default async function ProfileDropdown() {
     const supabase = createClient();
     const {
         data: { user },
@@ -55,6 +55,19 @@ export default async function DashboardHeaderProfileDropdown() {
 
     const initials = displayName?.[0] ?? user?.email?.[0] ?? "U";
 
+    if (!user) {
+        return (
+            <nav className="flex items-center gap-4">
+                <Button variant="outline" asChild>
+                    <Link href="/login">Sign In</Link>
+                </Button>
+                <Button asChild>
+                    <Link href="/signup">Sign Up</Link>
+                </Button>
+            </nav>
+        );
+    }
+
     return (
         <nav className="flex items-center">
             <Button variant="ghost" size="icon" className="mr-2">
@@ -84,21 +97,15 @@ export default async function DashboardHeaderProfileDropdown() {
                     <DropdownMenuLabel>{displayName ?? user?.email ?? "My Account"}</DropdownMenuLabel>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem asChild>
-                        <Link href="/dashboard/profile">
+                        <Link href="/profile">
                             <User className="mr-2 h-4 w-4" />
                             <span>Profile</span>
                         </Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
-                        <Link href="#">
-                            <Settings className="mr-2 h-4 w-4" />
-                            <span>Settings</span>
-                        </Link>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem asChild>
-                        <Link href="#">
-                            <HelpCircle className="mr-2 h-4 w-4" />
-                            <span>Help</span>
+                        <Link href="/chat">
+                            <Bell className="mr-2 h-4 w-4" /> {/* Reusing Bell icon for messages */}
+                            <span>Messages</span>
                         </Link>
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
