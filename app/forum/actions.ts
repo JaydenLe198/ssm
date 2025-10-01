@@ -169,7 +169,7 @@ export async function createComment(prevState: any, formData: FormData) {
   } = await supabase.auth.getUser();
 
   if (!user) {
-    return { error: 'You must be logged in to comment.' };
+    return { success: false, error: 'You must be logged in to comment.' };
   }
 
   const validatedFields = commentSchema.safeParse({
@@ -179,6 +179,7 @@ export async function createComment(prevState: any, formData: FormData) {
 
   if (!validatedFields.success) {
     return {
+      success: false,
       error: validatedFields.error.flatten().fieldErrors,
     };
   }
@@ -190,9 +191,9 @@ export async function createComment(prevState: any, formData: FormData) {
       content: validatedFields.data.content,
     });
     revalidatePath(`/forum/${validatedFields.data.postId}`);
-    return { message: 'Comment added successfully.', success: true, error: undefined };
+    return { success: true, message: 'Comment added successfully.', error: undefined };
   } catch (error) {
-    return { error: 'Failed to add comment.', success: false };
+    return { success: false, error: 'Failed to add comment.' };
   }
 }
 
