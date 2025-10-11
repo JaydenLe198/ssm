@@ -17,7 +17,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       {/* Required for pricing table */}
       <script async src="https://js.stripe.com/v3/pricing-table.js"></script>
       <body className={inter.className}>

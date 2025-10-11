@@ -6,7 +6,7 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Bell, User, Settings, HelpCircle, LogOut } from "lucide-react";
+import { Bell, Calendar, User, Settings, HelpCircle, LogOut } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 
@@ -106,6 +106,12 @@ export default async function ProfileDropdown() {
                         <Link href="/chat">
                             <Bell className="mr-2 h-4 w-4" /> {/* Reusing Bell icon for messages */}
                             <span>Messages</span>
+                        </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                        <Link href="/bookings">
+                            <Calendar className="mr-2 h-4 w-4" />
+                            <span>Booking</span>
                         </Link>
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />

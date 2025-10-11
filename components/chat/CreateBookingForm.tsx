@@ -1,22 +1,22 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useFormState } from 'react-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { createBookingRequest } from '@/app/chat/actions';
+import {
+  createBookingRequest,
+  type CreateBookingRequestFailure,
+  type CreateBookingRequestResult,
+} from '@/app/chat/actions';
 
-type CreateBookingRequestResult =
-  | { success: false; error: string; bookingId?: undefined } // When success is false, error must be a string
-  | { success: true; bookingId: string; error?: undefined };
-
-const initialState: CreateBookingRequestResult = {
+const initialState: CreateBookingRequestFailure = {
   success: false,
-  error: '', // Initialize error as an empty string to match the type
+  error: '',
   bookingId: undefined,
+  checkout_url: undefined,
 };
 
 interface CreateBookingFormProps {
@@ -34,9 +34,11 @@ export function CreateBookingForm({
   onBookingCreated,
   onCancel,
 }: CreateBookingFormProps) {
-  // You might want to add more sophisticated date/time pickers here
   const [scheduledStart, setScheduledStart] = useState('');
   const [scheduledEnd, setScheduledEnd] = useState('');
+  const [hourlyRate, setHourlyRate] = useState('');
+  const [serverError, setServerError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const createBookingRequestWrapper = async (
     prevState: any,
@@ -44,8 +46,15 @@ export function CreateBookingForm({
   ) => {
     const start = new Date(scheduledStart);
     const end = new Date(scheduledEnd);
+    const rate = parseFloat(hourlyRate);
 
-    return createBookingRequest(
+    const diffMs = end.getTime() - start.getTime();
+    const sessionLengthMinutes = Math.round(diffMs / (1000 * 60));
+    const totalAmount = ((sessionLengthMinutes / 60) * rate).toFixed(2);
+
+    setIsSubmitting(true);
+
+    const result = await createBookingRequest(
       conversationId,
       customerId,
       tutorId,
@@ -53,100 +62,117 @@ export function CreateBookingForm({
       formData.get('description') as string,
       start,
       end,
-      parseInt(formData.get('sessionLengthMinutes') as string),
-      formData.get('hourlyRate') as string,
-      formData.get('totalAmount') as string,
+      sessionLengthMinutes,
+      hourlyRate,
+      totalAmount,
       formData.get('location') as string,
       formData.get('meetingLink') as string,
       formData.get('specialInstructions') as string
     );
+    setIsSubmitting(false);
+    return result;
   };
 
-  const [state, formAction] = useFormState(
+  const [state, formAction] = useFormState<CreateBookingRequestResult>(
     createBookingRequestWrapper,
     initialState
   );
 
-  if (state.success) {
-    onBookingCreated();
-  } else if (state.error) {
-    alert(`Error: ${state.error}`);
-  }
+  useEffect(() => {
+    if (state.success) {
+      const { checkout_url } = state;
+      setServerError(null);
+      if (checkout_url) {
+        window.location.assign(checkout_url);
+      } else {
+        setServerError('Unexpected error launching checkout. Please try again.');
+      }
+    } else if (state.error) {
+      setServerError(state.error);
+    }
+  }, [state]);
+
+  const disableForm = isSubmitting;
+
+  const formActionLabel = useMemo(() => {
+    if (isSubmitting) {
+      return 'Submitting…';
+    }
+    return 'Send Booking Request';
+  }, [isSubmitting]);
 
   return (
-    <Card className="p-4">
-      <CardHeader>
-        <CardTitle>Create Booking Request</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <form action={formAction} className="space-y-4">
-          <div>
-            <Label htmlFor="title">Title</Label>
-            <Input id="title" name="title" required />
-          </div>
-          <div>
-            <Label htmlFor="description">Description</Label>
-            <Textarea id="description" name="description" />
-          </div>
-          <div>
-            <Label htmlFor="scheduledStart">Scheduled Start</Label>
-            <Input
-              id="scheduledStart"
-              name="scheduledStart"
-              type="datetime-local"
-              value={scheduledStart}
-              onChange={(e) => setScheduledStart(e.target.value)}
-              required
-            />
-          </div>
-          <div>
-            <Label htmlFor="scheduledEnd">Scheduled End</Label>
-            <Input
-              id="scheduledEnd"
-              name="scheduledEnd"
-              type="datetime-local"
-              value={scheduledEnd}
-              onChange={(e) => setScheduledEnd(e.target.value)}
-              required
-            />
-          </div>
-          <div>
-            <Label htmlFor="sessionLengthMinutes">Session Length (minutes)</Label>
-            <Input
-              id="sessionLengthMinutes"
-              name="sessionLengthMinutes"
-              type="number"
-              required
-            />
-          </div>
-          <div>
-            <Label htmlFor="hourlyRate">Hourly Rate</Label>
-            <Input id="hourlyRate" name="hourlyRate" type="text" required />
-          </div>
-          <div>
-            <Label htmlFor="totalAmount">Total Amount</Label>
-            <Input id="totalAmount" name="totalAmount" type="text" required />
-          </div>
-          <div>
-            <Label htmlFor="location">Location</Label>
-            <Input id="location" name="location" type="text" />
-          </div>
-          <div>
-            <Label htmlFor="meetingLink">Meeting Link</Label>
-            <Input id="meetingLink" name="meetingLink" type="text" />
-          </div>
-          <div>
-            <Label htmlFor="specialInstructions">Special Instructions</Label>
-            <Textarea id="specialInstructions" name="specialInstructions" />
-          </div>
-          <div className="flex gap-2">
-            <Button type="submit">Send Booking Request</Button>
-            <Button type="button" variant="outline" onClick={onCancel}>
-              Cancel
-            </Button>
-          </div>
-        </form>
-      </CardContent>
-    </Card>
+    <form action={formAction} className="space-y-4 p-4">
+      <h2 className="text-xl font-bold mb-4">Create Booking Request</h2>
+      {serverError && <p className="text-sm text-red-500">{serverError}</p>}
+      <div>
+        <Label htmlFor="title">Title</Label>
+        <Input id="title" name="title" required disabled={disableForm} />
+      </div>
+      <div>
+        <Label htmlFor="description">Description</Label>
+        <Textarea id="description" name="description" disabled={disableForm} />
+      </div>
+      <div>
+        <Label htmlFor="scheduledStart">Scheduled Start</Label>
+        <Input
+          id="scheduledStart"
+          name="scheduledStart"
+          type="datetime-local"
+          value={scheduledStart}
+          onChange={(e) => setScheduledStart(e.target.value)}
+          required
+          disabled={disableForm}
+        />
+      </div>
+      <div>
+        <Label htmlFor="scheduledEnd">Scheduled End</Label>
+        <Input
+          id="scheduledEnd"
+          name="scheduledEnd"
+          type="datetime-local"
+          value={scheduledEnd}
+          onChange={(e) => setScheduledEnd(e.target.value)}
+          required
+          disabled={disableForm}
+        />
+      </div>
+      <div>
+        <Label htmlFor="hourlyRate">Hourly Rate</Label>
+        <Input
+          id="hourlyRate"
+          name="hourlyRate"
+          type="number"
+          value={hourlyRate}
+          onChange={(e) => setHourlyRate(e.target.value)}
+          required
+          disabled={disableForm}
+        />
+      </div>
+      <div>
+        <Label htmlFor="location">Location</Label>
+        <Input id="location" name="location" type="text" disabled={disableForm} />
+      </div>
+      <div>
+        <Label htmlFor="meetingLink">Meeting Link</Label>
+        <Input id="meetingLink" name="meetingLink" type="text" disabled={disableForm} />
+      </div>
+      <div>
+        <Label htmlFor="specialInstructions">Special Instructions</Label>
+        <Textarea
+          id="specialInstructions"
+          name="specialInstructions"
+          disabled={disableForm}
+        />
+      </div>
+      <div className="flex gap-2">
+        <Button type="submit" disabled={disableForm}>
+          {formActionLabel}
+        </Button>
+        <Button type="button" variant="outline" onClick={onCancel} disabled={isSubmitting}>
+          Cancel
+        </Button>
+      </div>
+    </form>
   );
 }

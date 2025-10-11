@@ -1,11 +1,15 @@
 import {
+  check,
   integer,
+  jsonb,
   pgEnum,
   pgTable,
   text,
   timestamp,
+  uniqueIndex,
   uuid,
 } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
 
 export const authUsers = pgTable(
   'users',
@@ -128,13 +132,48 @@ export const bookingsTable = pgTable('bookings', {
   location: text('location'),
   meetingLink: text('meeting_link'),
   specialInstructions: text('special_instructions'),
+  paymentIntentId: text('payment_intent_id'),
+  paymentStatus: text('payment_status')
+    .notNull()
+    .default('requires_payment'),
+  paymentAmountCents: integer('payment_amount_cents'),
+  paymentCurrency: text('payment_currency').notNull().default('usd'),
+  paymentVersion: integer('payment_version').notNull().default(1),
+  lastPaymentEventAt: timestamp('last_payment_event_at', { withTimezone: true }),
+  lastPaymentError: text('last_payment_error'),
   createdAt: timestamp('created_at', { withTimezone: true })
     .notNull()
     .defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true })
     .notNull()
     .defaultNow(),
-});
+}, (table) => ({
+  paymentStatusCheck: check(
+    'bookings_payment_status_check',
+    sql`${table.paymentStatus} in ('requires_payment','authorization_pending','authorized','capturable','captured','refunding','refunded','canceled')`
+  ),
+}));
+
+export const bookingPaymentsTable = pgTable(
+  'booking_payments',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    bookingId: uuid('booking_id')
+      .notNull()
+      .references(() => bookingsTable.id, { onDelete: 'cascade' }),
+    stripeEventId: text('stripe_event_id').notNull(),
+    status: text('status').notNull(),
+    payload: jsonb('payload').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => ({
+    stripeEventIdUnique: uniqueIndex('booking_payments_stripe_event_id_idx').on(
+      table.stripeEventId
+    ),
+  })
+);
 
 export type InsertPost = typeof postsTable.$inferInsert;
 export type SelectPost = typeof postsTable.$inferSelect;
@@ -146,6 +185,8 @@ export type InsertMessage = typeof messagesTable.$inferInsert;
 export type SelectMessage = typeof messagesTable.$inferSelect;
 export type InsertBooking = typeof bookingsTable.$inferInsert;
 export type SelectBooking = typeof bookingsTable.$inferSelect;
+export type InsertBookingPayment = typeof bookingPaymentsTable.$inferInsert;
+export type SelectBookingPayment = typeof bookingPaymentsTable.$inferSelect;
 
 export type InsertUser = typeof usersTable.$inferInsert;
 export type SelectUser = typeof usersTable.$inferSelect;
